@@ -1,0 +1,21 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/allyIcon.png</file>
+        <file>icons/atack2.jpg</file>
+        <file>icons/ballIcon.png</file>
+        <file>icons/cameraIcon.png</file>
+        <file>icons/colorsIcon.png</file>
+        <file>icons/darth2.jpeg</file>
+        <file>icons/enemyIcon.png</file>
+        <file>icons/filterIcon.png</file>
+        <file>icons/luvasdegoleir.png</file>
+        <file>icons/map.jpg</file>
+        <file>icons/off.png</file>
+        <file>icons/on.png</file>
+        <file>icons/robots.png</file>
+        <file>icons/romarioIcon.png</file>
+        <file>icons/taffarelIcon.jpg</file>
+        <file>icons/yoda2.jpg</file>
+        <file>icons/zagueiro.png</file>
+    </qresource>
+</RCC>
