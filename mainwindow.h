@@ -101,6 +101,12 @@ private slots:
 
     void on_idckb_currentIndexChanged(int index);
 
+    void updateSliderState();
+
+public slots:
+    void updateSegmentaionImage(Mat img);
+    void updateFieldImage(Mat img);
+
 private:
     Ui::MainWindow *ui;
     Vision *vision;

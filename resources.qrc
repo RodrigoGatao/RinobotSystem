@@ -17,5 +17,6 @@
         <file>icons/taffarelIcon.jpg</file>
         <file>icons/yoda2.jpg</file>
         <file>icons/zagueiro.png</file>
+        <file>icons/CampoTamanhoTela.png</file>
     </qresource>
 </RCC>

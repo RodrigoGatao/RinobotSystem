@@ -6,23 +6,47 @@
 using namespace std;
 using namespace cv;
 
+void onMouse(int event, int x,int y, int flags, void *userdata); //funtion who get the points
 
 Vision::Vision(QObject *parent): QThread(parent)
 {
     running = false;
-    virtualField =  imread("CampoTamanhoTela.png");
+    virtualField =  imread("../RinobotSystem/icons/CampoTamanhoTela.png");
+    cameraId = 0;
+    currentMinHSV = Vec3f(0, 0, 0);
+    currentMaxHSV = Vec3f(255, 255, 255);
 }
 
 void Vision::run()
 {
-    getRawFrame();
-    visionFrame = preProcessing(rawFrame, GAUSSIAN, 7, MATCH_FIELD_FALSE, USE_LUT_TRUE);
+    //visionFrame = preProcessing(rawFrame, GAUSSIAN, 7, MATCH_FIELD_FALSE, USE_LUT_TRUE);
+
+    while(running)
+    {
+        if(visionMode == SET_COLORS_MODE)
+        {
+            Mat image2show;
+            getRawFrame();
+            image2show = preProcessing(rawFrame, GAUSSIAN, 7, MATCH_FIELD_TRUE, USE_LUT_FALSE);
+            image2show = colorSegmentationInterface(image2show);
+            emit emit_segmentationImage(image2show);
+        }
+        if(visionMode == PERSPECTIVE_MODE)
+        {
+            Mat image2show;
+            getRawFrame();
+            image2show = preProcessing(rawFrame, GAUSSIAN, 7, MATCH_FIELD_TRUE, USE_LUT_FALSE);
+            cvtColor(image2show, image2show, COLOR_HSV2RGB);
+            emit emit_fieldImage(image2show);
+
+        }
+
+        double delay = 100;
+        msleep(delay);
+    }
+
 }
 
-void Vision::Play()
-{
-    Vision::run();
-}
 
 /*
  * Funcao que abre a câmera
@@ -49,7 +73,6 @@ void Vision::openCamera()
  */
 void Vision::closeCamera()
 {
-    int id = getCameraId();
     cap.release();
 
     if( cap.isOpened() )
@@ -247,6 +270,50 @@ Mat Vision::preProcessing(Mat src, int filter, int kernelSize, bool matchField, 
 }
 
 /*
+ * Funcao que pega os pontos dos cliques e manda salvar a matriz de transformação
+ */
+void Vision::setPerspectivePoints()
+{
+    vector<cv::Point> points; //the points who correct the perpective
+    int i; //number of points clickeds
+    while(1)
+    {
+        getRawFrame();
+        i = 0;
+        for(auto it=points.begin() ; it != points.end() ; ++it) //every frame it draw the points clickeds in the image
+        {
+            circle(rawFrame, *it, 0.1, Scalar(0,0,255), 5);
+            i++;
+        }
+        imshow("Set the points, to exit press ESC", rawFrame);
+        setMouseCallback("Set the points, to exit press ESC", onMouse, (void*)&points);
+        if((waitKey(1) == 27)||(i>=4))
+        {
+            break;
+        }
+    }
+    destroyWindow("Set the points, to exit press ESC");
+    setPerspectiveTransformation(points);
+}
+
+/*
+ * Callback para pegar os pontos
+ */
+void onMouse(int event, int x, int y, int flags, void *userdata)
+{
+    vector<cv::Point> *ptPtr = (vector<cv::Point>*)userdata;
+    if(event == EVENT_LBUTTONDOWN) //if the left button is clicked
+    {
+        ptPtr->push_back(Point(x,y));
+        cout << "x: " << x << "y: " << y << endl;
+    }else if(event == EVENT_RBUTTONDOWN) //if the right button is clicked
+    {
+        if(!ptPtr->empty())
+            ptPtr->erase(ptPtr->end());
+    }
+}
+
+/*
  * Funcao que salva a matrix de transformação para corrigir perspectiva
  */
 void Vision::setPerspectiveTransformation(vector<Point> realFieldPoints)
@@ -262,6 +329,7 @@ void Vision::setPerspectiveTransformation(vector<Point> realFieldPoints)
 
     // Calcula a matriz de transformação com base nos pontos acima e os recebidos pelo usuário
     fieldHomography1 = findHomography(realFieldPoints, pts_dst);
+    fieldHomography2 = findHomography(realFieldPoints, pts_dst);
 }
 
 /*
@@ -287,7 +355,9 @@ Point2f Vision::px2meter(Point pxPoint)
 }
 
 /*
- * Funcao que blablabla
+ * Funcao que retorna a matriz de transformação para correção de perspectiva
+ * São duas matrizes, pois ao se alternar a ordem dos pontos de origem pode-se
+ * rotacionar a imagem, ou seja, inverter o lado do campo
  */
 Mat Vision::getFieldHomography(int side)
 {
@@ -295,16 +365,26 @@ Mat Vision::getFieldHomography(int side)
     if(side == 2 )  return this->fieldHomography2;
 }
 
+/*
+ * Funcao que retorna o id da câmera utilizada
+ */
 int Vision::getCameraId()
 {
     return this->cameraId;
 }
 
+/*
+ * Funcao que guarda o id da câmera utilizada
+ */
 void Vision::setCameraId(int index)
 {
     this->cameraId = index;
 }
 
+/*
+ * Funcao que guarda as cores configuradas pela interface nos vetores
+ * utilizados para contruir a LUT
+ */
 void Vision::addColor(Mat3f colorMin, Mat3f colorMax)
 {
     minColorsRange.push_back(colorMin);
@@ -324,3 +404,56 @@ void Vision::addColor(Mat3f colorMin, Mat3f colorMax)
     }
     cout << " " << endl;
 }
+
+void Vision::setCurrentMinHSV(Vec3f min)
+{
+    currentMinHSV = min;
+}
+
+void Vision::setCurrentMaxHSV(Vec3f max)
+{
+    currentMaxHSV = max;
+}
+
+void Vision::setVisionMode(int mode)
+{
+    visionMode = mode;
+}
+
+/*
+ * Funcao que retorna a mascara de segmentação de cores baseado em intervalos HSV
+ * OBS: quando o valor da componente H máximo é menor que o mínimo desta
+ * as bordas são segmentadas, exemplo/objetivo: segmentar corretamente o vermelho
+ */
+Mat Vision::colorSegmentation(Mat im_src, Vec3f minHSV, Vec3f maxHSV)
+{
+    Mat mask;
+    inRange(im_src, Scalar(minHSV[0], minHSV[1], minHSV[2]), Scalar(maxHSV[0], maxHSV[1], maxHSV[2]), mask);
+    return mask;
+}
+
+/*
+ * Análoga à função colorSegmentation, porém retorna o resultado da imagem segmentada,
+ * ao invés da máscara. Essa imageem é retorna em BGR, para mostrar na interface.
+ */
+Mat Vision::colorSegmentationInterface(Mat im_src)
+{
+    Mat im_out, mask;
+    mask = colorSegmentation(im_src, currentMinHSV, currentMaxHSV);
+
+    if(im_src.size == mask.size)
+    {
+        bitwise_and(im_src, im_src, im_out, mask);
+    }else
+    {
+        im_out = im_src;
+    }
+    cvtColor(im_out, im_out, COLOR_HSV2RGB);
+    return im_out;
+}
+
+
+
+
+
+

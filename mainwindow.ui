@@ -216,8 +216,8 @@
       </property>
       <property name="icon">
        <iconset>
-        <normaloff>../Downloads/on.png</normaloff>
-        <selectedoff>../Downloads/off.png</selectedoff>../Downloads/on.png</iconset>
+        <normaloff>icons/off.png</normaloff>
+        <selectedoff>../Downloads/off.png</selectedoff>icons/off.png</iconset>
       </property>
       <property name="iconSize">
        <size>
@@ -253,8 +253,8 @@
       </property>
       <property name="icon">
        <iconset>
-        <normaloff>../Downloads/on.png</normaloff>
-        <selectedoff>../Downloads/off.png</selectedoff>../Downloads/on.png</iconset>
+        <normaloff>icons/off.png</normaloff>
+        <selectedoff>../Downloads/off.png</selectedoff>icons/off.png</iconset>
       </property>
       <property name="iconSize">
        <size>
@@ -290,8 +290,8 @@
       </property>
       <property name="icon">
        <iconset>
-        <normaloff>../Downloads/on.png</normaloff>
-        <selectedoff>../Downloads/off.png</selectedoff>../Downloads/on.png</iconset>
+        <normaloff>icons/off.png</normaloff>
+        <selectedoff>../Downloads/off.png</selectedoff>icons/off.png</iconset>
       </property>
       <property name="iconSize">
        <size>
@@ -400,8 +400,12 @@
       </property>
       <property name="icon">
        <iconset>
-        <normaloff>../Downloads/on.png</normaloff>
-        <selectedoff>../Downloads/off.png</selectedoff>../Downloads/on.png</iconset>
+        <normaloff>icons/off.png</normaloff>
+        <normalon>:/icons/on.png</normalon>
+        <activeoff>:/icons/off.png</activeoff>
+        <activeon>:/icons/on.png</activeon>
+        <selectedoff>../Downloads/off.png</selectedoff>
+        <selectedon>:/icons/on.png</selectedon>icons/off.png</iconset>
       </property>
       <property name="iconSize">
        <size>
@@ -531,17 +535,17 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>3</number>
+     <number>1</number>
     </property>
     <widget class="QWidget" name="defaultpagegbx"/>
     <widget class="QWidget" name="selectPerpectivegbx">
      <widget class="QLabel" name="camPerspetctivelbl">
       <property name="geometry">
        <rect>
-        <x>10</x>
-        <y>10</y>
-        <width>751</width>
-        <height>511</height>
+        <x>110</x>
+        <y>60</y>
+        <width>506</width>
+        <height>380</height>
        </rect>
       </property>
       <property name="text">
@@ -726,8 +730,8 @@
        <rect>
         <x>20</x>
         <y>50</y>
-        <width>751</width>
-        <height>371</height>
+        <width>506</width>
+        <height>380</height>
        </rect>
       </property>
       <property name="text">
@@ -787,7 +791,7 @@
        </rect>
       </property>
       <property name="maximum">
-       <number>255</number>
+       <number>180</number>
       </property>
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
@@ -939,7 +943,7 @@
        </rect>
       </property>
       <property name="maximum">
-       <number>255</number>
+       <number>180</number>
       </property>
       <property name="orientation">
        <enum>Qt::Horizontal</enum>

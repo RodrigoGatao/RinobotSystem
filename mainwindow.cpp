@@ -26,13 +26,14 @@ bool cameraFlag_clicked = true;
 bool gaussianFlag_clicked = true, blurringFlag_clicked = true, barinoFlag_clicked = true;
 bool changeflag;
 
-void onMouse(int event, int x,int y, int flags, void *userdata); //funtion who get the points
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+    qRegisterMetaType<Mat>("Mat");
 
     vision = new Vision;
 
@@ -43,12 +44,12 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->robotgbx->setVisible(false);
     ui->perpectivegbx->setVisible(false);
 
-    QPixmap alye ("/icons/allyIcon.png");
-    QPixmap enemy("/icons/enemyIcon.png");
-    QPixmap ball("/icons/ballIcon.png");
-    QPixmap goalkepper("/icons/taffarelIcon.jpg");
-    QPixmap defenser("/icons/zagueiro.png");
-    QPixmap attacker("/icons/romarioIcon.png");
+    QPixmap alye (":/icons/allyIcon.png");
+    QPixmap enemy(":/icons/enemyIcon.png");
+    QPixmap ball(":/icons/ballIcon.png");
+    QPixmap goalkepper(":/icons/taffarelIcon.jpg");
+    QPixmap defenser(":/icons/zagueiro.png");
+    QPixmap attacker(":/icons/romarioIcon.png");
 
     ui->allyEditlbl->setPixmap(alye);
     ui->enemyEditlbl->setPixmap(enemy);
@@ -59,6 +60,9 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->attackerEditlbl->setPixmap(attacker);
     //ui->attackerEditlbl->setScaledContents(true);
     ui->miniwindowswt->setCurrentIndex(0);
+
+    connect(vision, SIGNAL(emit_segmentationImage(Mat)), this, SLOT(updateSegmentaionImage(Mat)), Qt::QueuedConnection);
+    connect(vision, SIGNAL(emit_fieldImage(Mat)), this, SLOT(updateFieldImage(Mat)), Qt::QueuedConnection);
 }
 
 MainWindow::~MainWindow()
@@ -75,23 +79,23 @@ void MainWindow::on_onoffbtn_clicked()
 {
     if(cameraFlag_clicked)
     {
-        QPixmap onPM("/icons/on.png");
-        QIcon onI;
-
-        onI.addPixmap(onPM);
+        QPixmap onPM(":/icons/on.png");
+        QIcon onI(onPM);
         ui->onoffbtn->setIcon(onI);
         cameraFlag_clicked = false;
         vision->openCamera();
+        vision->running = true;
+        vision->start();
     }
     else
     {
-        QPixmap offPM("/icons/off.png");
-        QIcon offI;
-
-        offI.addPixmap(offPM);
+        QPixmap offPM(":/icons/off.png");
+        QIcon offI(offPM);
         ui->onoffbtn->setIcon(offI);
         cameraFlag_clicked = true;
+        vision->running = false;
         vision->closeCamera();
+
     }
 }
 
@@ -104,7 +108,7 @@ void MainWindow::on_onoffbtn_2_clicked()
 {
     if(gaussianFlag_clicked)
     {
-        QPixmap onPM("/icons/on.png");
+        QPixmap onPM(":/icons/on.png");
         QIcon onI;
 
         onI.addPixmap(onPM);
@@ -113,7 +117,7 @@ void MainWindow::on_onoffbtn_2_clicked()
     }
     else
     {
-        QPixmap offPM("/icons/off.png");
+        QPixmap offPM(":/icons/off.png");
         QIcon offI;
 
         offI.addPixmap(offPM);
@@ -126,7 +130,7 @@ void MainWindow::on_onoffbtn_3_clicked()
 {
     if(blurringFlag_clicked)
     {
-        QPixmap onPM("/icons/on.png");
+        QPixmap onPM(":/icons/on.png");
         QIcon onI;
 
         onI.addPixmap(onPM);
@@ -135,7 +139,7 @@ void MainWindow::on_onoffbtn_3_clicked()
     }
     else
     {
-        QPixmap offPM("/icons/off.png");
+        QPixmap offPM(":/icons/off.png");
         QIcon offI;
 
         offI.addPixmap(offPM);
@@ -148,7 +152,7 @@ void MainWindow::on_onoffbtn_4_clicked()
 {
     if(barinoFlag_clicked)
     {
-        QPixmap onPM("/icons/on.png");
+        QPixmap onPM(":/icons/on.png");
         QIcon onI;
 
         onI.addPixmap(onPM);
@@ -157,7 +161,7 @@ void MainWindow::on_onoffbtn_4_clicked()
     }
     else
     {
-        QPixmap offPM("/icons/off.png");
+        QPixmap offPM(":/icons/off.png");
         QIcon offI;
 
         offI.addPixmap(offPM);
@@ -229,14 +233,8 @@ void MainWindow::on_robotbtn_clicked()
 
 void MainWindow::on_addnewColorbtn_clicked()
 {
-    QPixmap map("/icons/campoTela.png");
-    ui->camAddNewColorlbl->setPixmap(map);
-    ui->camAddNewColorlbl->setScaledContents(true);
     ui->miniwindowswt->setCurrentIndex(3);
-    Mat image2show;
-
-    QImage image1 = QImage( (uchar*) image2show.data, image2show.cols, image2show.rows, image2show.step, QImage::Format_RGB888);
-    ui->camAddNewColorlbl->setPixmap(QPixmap::fromImage(image1));
+    vision->setVisionMode(SET_COLORS_MODE);
 }
 
 void MainWindow::on_cancelColorbtn_clicked()
@@ -257,14 +255,17 @@ void MainWindow::on_mapsbtn_clicked()
     ui->mapinfolbl->setVisible(true);
     ui->colorinfolbl->setVisible(false);
     ui->robotinfolbl->setVisible(false);
+
+
 }
 
 void MainWindow::on_perspetivebtn_clicked()
 {
     ui->miniwindowswt->setCurrentIndex(1);
-    QPixmap map("/icons/campoTela.png");
-    ui->camSelectFieldlbl_2->setPixmap(map);
-    ui->camSelectFieldlbl_2->setScaledContents(true);
+    QImage img = QImage( (uchar*) vision->virtualField.data, vision->virtualField.cols, vision->virtualField.rows, vision->virtualField.step, QImage::Format_RGB888);
+    ui->camPerspetctivelbl->setPixmap(QPixmap::fromImage(img));
+    ui->camPerspetctivelbl->setScaledContents(true);
+    ui->camPerspetctivelbl->show();
 }
 
 void MainWindow::on_selectFieldsbtn_clicked()
@@ -272,7 +273,7 @@ void MainWindow::on_selectFieldsbtn_clicked()
     ui->miniwindowswt->setCurrentIndex(2);
     ui->allySideSelectFieldbtn_2->setVisible(false);
     ui->enemySideSelectFieldsbtn_2->setVisible(false);
-    QPixmap map("/icons/campoTela.png");
+    QPixmap map(":/icons/campoTela.png");
     ui->camPerspetctivelbl->setPixmap(map);
     ui->camPerspetctivelbl->setScaledContents(true);
 }
@@ -397,11 +398,14 @@ void MainWindow::on_cancelEditRobotsbtn_clicked()
 void MainWindow::on_upperhuesld_2_sliderMoved(int position)
 {
     ui->maxhuelcd_2->display(position);
+    updateSliderState();
+
 }
 
 void MainWindow::on_lowhuesld_2_sliderMoved(int position)
 {
     ui->minhuelcd_2->display(position);
+    updateSliderState();
 }
 
 void MainWindow::on_uppersaturationsld_2_actionTriggered(int action)
@@ -412,21 +416,25 @@ void MainWindow::on_uppersaturationsld_2_actionTriggered(int action)
 void MainWindow::on_lowsaturationsld_2_sliderMoved(int position)
 {
     ui->lowsaturationlcd_2->display(position);
+    updateSliderState();
 }
 
 void MainWindow::on_uppervaluesld_2_sliderMoved(int position)
 {
     ui->uppervaluelcd_2->display(position);
+    updateSliderState();
 }
 
 void MainWindow::on_lowvaluesld_2_sliderMoved(int position)
 {
     ui->lowvaluelcd_2->display(position);
+    updateSliderState();
 }
 
 void MainWindow::on_uppersaturationsld_2_sliderMoved(int position)
 {
     ui->uppersaturationlcd_2->display(position);
+    updateSliderState();
 }
 
 void MainWindow::on_confirmNameAddNewColorbtn_2_clicked()
@@ -500,61 +508,36 @@ void MainWindow::on_selectPointFieldbtn_2_clicked()
     ui->enemySideSelectFieldsbtn_2->setVisible(false);
 }
 
-std::vector<cv::Point> showCamera()
-{
-    Mat imgCamera; //matrix who keep the image who is produced by the camera
-    std::vector<cv::Point> points; //the points who correct the perpective
-    VideoCapture cam(0); //the frame of the camera
-    int i; //number of points clickeds
-    while(1)
-    {
-        cam.read(imgCamera);
-        i = 0;
-        for(auto it=points.begin() ; it != points.end() ; ++it) //every frame it draw the points clickeds in the image
-        {
-            cv::circle(imgCamera, *it, 0.1, Scalar(0,0,255), 5);
-            i++;
-        }
-        imshow("Set the points, to exit press ESC",imgCamera);
-        setMouseCallback("Set the points, to exit press ESC", onMouse, (void*)&points);
-        if((waitKey(1) == 27)||(i>=4))
-        {
-            break;
-        }
-    }
-    destroyWindow("Set the points, to exit press ESC");
-    cam.release();
-    return points;
-}
-
-void onMouse(int event, int x, int y, int flags, void *userdata)
-{
-    std::vector<cv::Point> *ptPtr = (std::vector<cv::Point>*)userdata;
-    if(event == EVENT_LBUTTONDOWN) //if the left button is clicked
-    {
-        ptPtr->push_back(cv::Point(x,y));
-        std::cout<<"x: "<<x<<"y: "<<y<<std::endl;
-    }else if(event == EVENT_RBUTTONDOWN) //if the right button is clicked
-    {
-        if(!ptPtr->empty())
-            ptPtr->erase(ptPtr->end());
-    }
-}
-
 void MainWindow::on_selectPerspectivebtn_clicked()
 {
-    VideoCapture cam(0);
-    std::vector<cv::Point> point = showCamera();
-    vision->setPerspectiveTransformation(point);
-    /*
-    Mat im_src, im_out;
-    im_src = vision->getFrame();
-    warpPerspective(im_src, im_out, vision->getFieldHomography(1), cv::Point(640,480));
-
-    QImage imgIn = QImage((uchar*) im_out.data, im_out.cols,im_out.rows,im_out.step, QImage::Format_RGB888);
-
-    ui->camPerspetctivelbl->setPixmap(QPixmap::fromImage(imgIn));
-    */
+    vision->setPerspectivePoints();
+    vision->setVisionMode(PERSPECTIVE_MODE);
 }
+
+void MainWindow::updateSliderState()
+{
+    Vec3f min( ui->minhuelcd_2->value(), ui->lowsaturationlcd_2->value(), ui->lowvaluelcd_2->value() );
+    Vec3f max( ui->maxhuelcd_2->value(), ui->uppersaturationlcd_2->value(), ui->uppervaluelcd_2->value() );
+    vision->setCurrentMinHSV(min);
+    vision->setCurrentMaxHSV(max);
+}
+
+void MainWindow::updateSegmentaionImage(Mat img)
+{
+    QImage image1 = QImage( (uchar*) img.data, img.cols, img.rows, img.step, QImage::Format_RGB888);
+
+    ui->camAddNewColorlbl->setPixmap(QPixmap::fromImage(image1));
+    ui->camAddNewColorlbl->show();
+}
+
+void MainWindow::updateFieldImage(Mat img)
+{
+    QImage image1 = QImage( (uchar*) img.data, img.cols, img.rows, img.step, QImage::Format_RGB888);
+
+    ui->camPerspetctivelbl->setPixmap(QPixmap::fromImage(image1));
+    ui->camPerspetctivelbl->show();
+}
+
+
 
 

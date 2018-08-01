@@ -55,3 +55,6 @@ OTHER_FILES += \
 
 RESOURCES += \
     resources.qrc
+
+DISTFILES += \
+    icons/CampoTamanhoTela.png

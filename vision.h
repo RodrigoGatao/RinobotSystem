@@ -25,6 +25,9 @@
 #define USE_LUT_FALSE 0
 #define MATCH_FIELD_TRUE 1
 #define MATCH_FIELD_FALSE 0
+#define SET_COLORS_MODE 1
+#define PLAY_MODE 2
+#define PERSPECTIVE_MODE 3
 
 typedef cv::Point3_<uint8_t> Pixel;
 
@@ -38,8 +41,9 @@ private:
     VideoCapture cap;                   // Câmera
     Mat rawFrame;                       // Imagens: capturada, usada no processamento
     Mat visionFrame;
-    Mat virtualField;                   // Campo de referência
     uint8_t LUT[256*256*256][3];        // Tabela de conversão BGR->HSV
+    Vec3f currentMinHSV;
+    Vec3f currentMaxHSV;
     vector<Mat3f> minColorsRange;       // Vetor com minimos HSV das cores de interesse
     vector<Mat3f> maxColorsRange;       // Vetor com maximos HSV das cores de interesse
     vector<Mat3f> refColors;            // Vetor com cores de referência
@@ -50,35 +54,47 @@ private:
     int team2ColorIndex;
     int ballColorIndex;
     int cameraId;
+    int visionMode;
 
     // Funções
     void getRawFrame();
     void loadLUT();
     void updateLUT();
-    void applyLUT(Mat frame);
+    void applyLUT(Mat frame);    
+
     Mat preProcessing(Mat src, int filter, int kernelSize, bool matchField, bool useLUT);
     Point2f px2meter(Point pxPoint);
     std::vector<cv::Point> showCamera(); //function to get the points to the correction perspective
+    Mat colorSegmentation(Mat im_src, Vec3f minHSV, Vec3f maxHSV);
+
+
 
 protected:
     void run();
 
 public:
     bool running;
-    int choose2show;
+    Mat virtualField;                   // Campo de referência
+
 
     explicit Vision(QObject *parent = nullptr);
     int getCameraId();
     void openCamera();
     void closeCamera();
-    void Play();
     void setPerspectiveTransformation(vector<Point> realFieldPoints);
     void setCameraId(int index);
     void addColor(Mat3f colorMin, Mat3f colorMax);
+    void setPerspectivePoints();
+    void setCurrentMinHSV(Vec3f min);
+    void setCurrentMaxHSV(Vec3f max);
+    void setVisionMode(int mode);
+
     Mat getFieldHomography(int side);
+    Mat colorSegmentationInterface(Mat im_src);
 
 signals:
-    void imgChanged(cv::Mat);
+    void emit_segmentationImage(Mat img);
+    void emit_fieldImage(Mat img);
 
 
 public slots:
