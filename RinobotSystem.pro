@@ -27,10 +27,12 @@ LIBS += `pkg-config --cflags --libs opencv`
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    vision.cpp
+    vision.cpp \
+    utils.cpp
 
 HEADERS  += mainwindow.h \
-    vision.h
+    vision.h \
+    utils.h
 
 FORMS    += mainwindow.ui
 

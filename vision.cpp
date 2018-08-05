@@ -13,8 +13,9 @@ Vision::Vision(QObject *parent): QThread(parent)
     running = false;
     virtualField =  imread("../RinobotSystem/icons/CampoTamanhoTela.png");
     cameraId = 0;
-    currentMinHSV = Vec3f(0, 0, 0);
-    currentMaxHSV = Vec3f(255, 255, 255);
+    currentMinHSV = Vec3i(0, 0, 0);
+    currentMaxHSV = Vec3i(255, 255, 255);
+    loadLUT();
 }
 
 void Vision::run()
@@ -23,6 +24,15 @@ void Vision::run()
 
     while(running)
     {
+        if(visionMode == PERSPECTIVE_MODE)
+        {
+            Mat image2show;
+            getRawFrame();
+            image2show = preProcessing(rawFrame, GAUSSIAN, 7, MATCH_FIELD_TRUE, USE_LUT_TRUE);
+            cvtColor(image2show, image2show, COLOR_HSV2RGB);
+            emit emit_fieldImage(image2show);
+
+        }
         if(visionMode == SET_COLORS_MODE)
         {
             Mat image2show;
@@ -31,20 +41,11 @@ void Vision::run()
             image2show = colorSegmentationInterface(image2show);
             emit emit_segmentationImage(image2show);
         }
-        if(visionMode == PERSPECTIVE_MODE)
-        {
-            Mat image2show;
-            getRawFrame();
-            image2show = preProcessing(rawFrame, GAUSSIAN, 7, MATCH_FIELD_TRUE, USE_LUT_FALSE);
-            cvtColor(image2show, image2show, COLOR_HSV2RGB);
-            emit emit_fieldImage(image2show);
 
-        }
 
         double delay = 100;
         msleep(delay);
     }
-
 }
 
 
@@ -116,12 +117,15 @@ void Vision::updateLUT()
 
     // variáveis usadas para converter o RGB de ref em HSV
     Mat3f src_HSV;
-    float h, s, v;
+    unsigned char h, s, v;
     unsigned int index;
+
+    color aux;
+    Vec3i min, max;
 
     // arquivo de texto para salvar a tabela
     fstream file;
-    file.open("LUT.txt", ofstream::out);
+    file.open("../RinobotSystem/LUT", ofstream::out);
 
     cout << "Updating LUT..." << endl;
 
@@ -145,11 +149,10 @@ void Vision::updateLUT()
                 // Deixa 0 <= H <= 180 (padrão OpenCV)
                 h = (float) src_HSV.at<float>(0, 0)/2;
                 // Deixa o S entre 0 <= S <= 255 (padrão OpenCV)
-                s = (float) src_HSV.at<float>(0, 1)*100;
+                s = (float) src_HSV.at<float>(0, 1)*255;
                 // Deixa o V entre 0 <= S <= 255 (padrão OpenCV)
                 v = (float) src_HSV.at<float>(0, 2);
 
-                Mat3f min, max, ref;
 
                 // Por padrão, a cor não de interesse, logo: fundo preto
                 LUT[index][0] = (unsigned char) 0;
@@ -157,20 +160,20 @@ void Vision::updateLUT()
                 LUT[index][2] = (unsigned char) 0;
 
                 // percorre o vetor de cores configuradas no Set Colors
-                for(int k = 0; k < refColors.size(); k++)
+                for(int k = 0; k < configColors.size(); k++)
                 {
-                    min = minColorsRange.at(k);
-                    max = maxColorsRange.at(k);
-                    ref = refColors.at(k);
+                    aux = configColors.at(k);
+                    min = aux.minHSV;
+                    max = aux.maxHSV;
 
                     // Se o RGB atual está na faixa de interesse da cor configurada, recebe seu valor de referência
-                    if( (h >= min.at<float>(0,0) && h <= max.at<float>(0,0)) &&
-                            (s >= min.at<float>(0,1) && s <= max.at<float>(0,1)) &&
-                            (v >= min.at<float>(0,2) && v <= max.at<float>(0,2)) ){
+                    if( (h >= min[0] && h <= max[0]) &&
+                            (s >= min[1] && s <= max[1]) &&
+                            (v >= min[2] && v <= max[2]) ){
 
-                        LUT[index][0] = (unsigned char) ref.at<float>(0,0);
-                        LUT[index][1] = (unsigned char) ref.at<float>(0,1);
-                        LUT[index][2] = (unsigned char) ref.at<float>(0,2);
+                        LUT[index][0] = (unsigned char) (min[0]+max[0])/2;
+                        LUT[index][1] = (unsigned char) 255;
+                        LUT[index][2] = (unsigned char) 255;
                     }
                 }
                 // Salva valor atual de RGB no arquivo de texto
@@ -190,7 +193,7 @@ void Vision::loadLUT()
     cout << "Reading LUT..." << endl;
     // Arquivo de texto contendo a última tabela salva
     ifstream file;
-    file.open("LUT.txt", fstream::in);
+    file.open("../RinobotSystem/LUT", fstream::in);
 
     // Se não conseguiu abrir
     if(!file){
@@ -385,22 +388,20 @@ void Vision::setCameraId(int index)
  * Funcao que guarda as cores configuradas pela interface nos vetores
  * utilizados para contruir a LUT
  */
-void Vision::addColor(Mat3f colorMin, Mat3f colorMax)
-{
-    minColorsRange.push_back(colorMin);
-    maxColorsRange.push_back(colorMax);
-    refColors.push_back((colorMax+colorMin)/2);
+void Vision::addColor(color newColor)
+{   
+    configColors.push_back(newColor);
 
     cout << "Min color vector: " << endl;
-    for(int i = 0; i<refColors.size(); i++)
+    for(int i = 0; i<configColors.size(); i++)
     {
-        cout << minColorsRange.at(i) << endl;
+        cout << configColors.at(i).minHSV << endl;
     }
 
     cout << "Max color vector: " << endl;
-    for(int i = 0; i<refColors.size(); i++)
+    for(int i = 0; i<configColors.size(); i++)
     {
-        cout << maxColorsRange.at(i) << endl;
+        cout << configColors.at(i).maxHSV << endl;
     }
     cout << " " << endl;
 }
@@ -452,8 +453,38 @@ Mat Vision::colorSegmentationInterface(Mat im_src)
     return im_out;
 }
 
+void Vision::loadColorRanges(QStringList text)
+{
+    color aux;
+    float Hmin, Smin, Vmin, Hmax, Smax, Vmax;
+    for(int i = 0; i < text.size()-1;i = i+7)
+    {
+        aux.name = text.at(i).toLocal8Bit().constData();
+        Hmin = atof(text.at(i+1).toLocal8Bit().constData());
+        Smin = atof(text.at(i+2).toLocal8Bit().constData());
+        Vmin = atof(text.at(i+3).toLocal8Bit().constData());
+        Hmax = atof(text.at(i+4).toLocal8Bit().constData());
+        Smax = atof(text.at(i+5).toLocal8Bit().constData());
+        Vmax = atof(text.at(i+6).toLocal8Bit().constData());
+        aux.minHSV = Vec3i(Hmin,Smin,Vmin);
+        aux.maxHSV = Vec3i(Hmax,Smax,Vmax);
+        configColors.push_back(aux);
+    }
+}
 
-
+color Vision::getConfigColor(int index)
+{
+    if(configColors.size()>0)
+    {
+        return configColors.at(index);
+    }else{
+        color blank;
+        blank.name = "blank";
+        blank.maxHSV = Vec3i(0, 0, 0);
+        blank.maxHSV = Vec3i(180, 255, 255);
+        return blank;
+    }
+}
 
 
 

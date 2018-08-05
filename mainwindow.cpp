@@ -44,21 +44,13 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->robotgbx->setVisible(false);
     ui->perpectivegbx->setVisible(false);
 
-    QPixmap alye (":/icons/allyIcon.png");
-    QPixmap enemy(":/icons/enemyIcon.png");
-    QPixmap ball(":/icons/ballIcon.png");
-    QPixmap goalkepper(":/icons/taffarelIcon.jpg");
-    QPixmap defenser(":/icons/zagueiro.png");
-    QPixmap attacker(":/icons/romarioIcon.png");
+    QStringList text = readText("config/colors");
+    for(int i = 0; i < text.size()-1;i = i+7)
+    {
+        ui->editColorcmb->addItem(text.at(i).toLocal8Bit().constData());
+    }
+    vision->loadColorRanges(text);
 
-    ui->allyEditlbl->setPixmap(alye);
-    ui->enemyEditlbl->setPixmap(enemy);
-    ui->ballEditlbl->setPixmap(ball);
-    ui->goalkeeperEditlbl->setPixmap(goalkepper);
-    //ui->goalkeeperEditlbl->setScaledContents(true);
-    ui->defenserEditlbl->setPixmap(defenser);
-    ui->attackerEditlbl->setPixmap(attacker);
-    //ui->attackerEditlbl->setScaledContents(true);
     ui->miniwindowswt->setCurrentIndex(0);
 
     connect(vision, SIGNAL(emit_segmentationImage(Mat)), this, SLOT(updateSegmentaionImage(Mat)), Qt::QueuedConnection);
@@ -281,6 +273,8 @@ void MainWindow::on_selectFieldsbtn_clicked()
 void MainWindow::on_editColorbtn_clicked()
 {
     ui->miniwindowswt->setCurrentIndex(4);
+    vision->updateLUT();
+
 }
 
 void MainWindow::on_addnewRobotbtn_clicked()
@@ -342,6 +336,25 @@ void MainWindow::on_cancelAddNewColorbtn_2_clicked()
     {
         ui->miniwindowswt->setCurrentIndex(0);
     }
+    vision->setVisionMode(DO_NOTHING);
+}
+
+void MainWindow::on_cancelEditColorbtn_4_clicked()
+{
+    if(changeflag)
+    {
+        QMessageBox::StandardButton question;
+        question = QMessageBox::question(this,"Warning","Do you want to quit, without saving the changes?",QMessageBox::Yes|QMessageBox::No);
+        if(question == QMessageBox::Yes)
+        {
+            ui->miniwindowswt->setCurrentIndex(0);
+        }
+    }
+    else
+    {
+        ui->miniwindowswt->setCurrentIndex(0);
+    }
+    vision->setVisionMode(DO_NOTHING);
 }
 
 void MainWindow::on_cancelEditbtn_clicked()
@@ -398,14 +411,14 @@ void MainWindow::on_cancelEditRobotsbtn_clicked()
 void MainWindow::on_upperhuesld_2_sliderMoved(int position)
 {
     ui->maxhuelcd_2->display(position);
-    updateSliderState();
+    updateSliderState(SET_COLORS_MODE);
 
 }
 
 void MainWindow::on_lowhuesld_2_sliderMoved(int position)
 {
     ui->minhuelcd_2->display(position);
-    updateSliderState();
+    updateSliderState(SET_COLORS_MODE);
 }
 
 void MainWindow::on_uppersaturationsld_2_actionTriggered(int action)
@@ -416,34 +429,79 @@ void MainWindow::on_uppersaturationsld_2_actionTriggered(int action)
 void MainWindow::on_lowsaturationsld_2_sliderMoved(int position)
 {
     ui->lowsaturationlcd_2->display(position);
-    updateSliderState();
+    updateSliderState(SET_COLORS_MODE);
 }
 
 void MainWindow::on_uppervaluesld_2_sliderMoved(int position)
 {
     ui->uppervaluelcd_2->display(position);
-    updateSliderState();
+    updateSliderState(SET_COLORS_MODE);
 }
 
 void MainWindow::on_lowvaluesld_2_sliderMoved(int position)
 {
     ui->lowvaluelcd_2->display(position);
-    updateSliderState();
+    updateSliderState(SET_COLORS_MODE);
 }
 
 void MainWindow::on_uppersaturationsld_2_sliderMoved(int position)
 {
     ui->uppersaturationlcd_2->display(position);
-    updateSliderState();
+    updateSliderState(SET_COLORS_MODE);
+}
+
+void MainWindow::on_upperhuesld_4_sliderMoved(int position)
+{
+    ui->maxhuelcd_4->display(position);
+    updateSliderState(EDIT_COLORS_MODE);
+
+}
+
+void MainWindow::on_lowhuesld_4_sliderMoved(int position)
+{
+    ui->minhuelcd_4->display(position);
+    updateSliderState(EDIT_COLORS_MODE);
+}
+
+void MainWindow::on_lowsaturationsld_4_sliderMoved(int position)
+{
+    ui->lowsaturationlcd_4->display(position);
+    updateSliderState(EDIT_COLORS_MODE);
+}
+
+void MainWindow::on_uppervaluesld_4_sliderMoved(int position)
+{
+    ui->uppervaluelcd_4->display(position);
+    updateSliderState(EDIT_COLORS_MODE);
+}
+
+void MainWindow::on_lowvaluesld_4_sliderMoved(int position)
+{
+    ui->lowvaluelcd_4->display(position);
+    updateSliderState(EDIT_COLORS_MODE);
+}
+
+void MainWindow::on_uppersaturationsld_4_sliderMoved(int position)
+{
+    ui->uppersaturationlcd_4->display(position);
+    updateSliderState(EDIT_COLORS_MODE);
 }
 
 void MainWindow::on_confirmNameAddNewColorbtn_2_clicked()
 {
-    Mat3f min( Vec3f( ui->minhuelcd_2->value(), ui->lowsaturationlcd_2->value(), ui->lowvaluelcd_2->value() ) );
-    Mat3f max( Vec3f( ui->maxhuelcd_2->value(), ui->uppersaturationlcd_2->value(), ui->uppervaluelcd_2->value() ) );
+    color newColor;
+    Vec3i min( ui->minhuelcd_2->value(), ui->lowsaturationlcd_2->value(), ui->lowvaluelcd_2->value());
+    Vec3i max(ui->maxhuelcd_2->value(), ui->uppersaturationlcd_2->value(), ui->uppervaluelcd_2->value());
 
-    vision->addColor(min, max);
-    // fazer algo com o nome da cor, por favor
+    newColor.name = ui->nameColorled_2->text().toUtf8().constData();
+    newColor.minHSV = min;
+    newColor.maxHSV = max;
+
+    vision->addColor(newColor);
+    
+    // adicionar ao arquivo de texto
+    
+    
     changeflag = false;
     QMessageBox::warning(this,tr(":)"),tr("the changes have been saved"));
     ui->miniwindowswt->setCurrentIndex(0);
@@ -514,10 +572,17 @@ void MainWindow::on_selectPerspectivebtn_clicked()
     vision->setVisionMode(PERSPECTIVE_MODE);
 }
 
-void MainWindow::updateSliderState()
+void MainWindow::updateSliderState(int mode)
 {
-    Vec3f min( ui->minhuelcd_2->value(), ui->lowsaturationlcd_2->value(), ui->lowvaluelcd_2->value() );
-    Vec3f max( ui->maxhuelcd_2->value(), ui->uppersaturationlcd_2->value(), ui->uppervaluelcd_2->value() );
+    Vec3i min, max;
+    if(mode == SET_COLORS_MODE){
+        min = Vec3i( ui->minhuelcd_2->value(), ui->lowsaturationlcd_2->value(), ui->lowvaluelcd_2->value() );
+        max = Vec3i( ui->maxhuelcd_2->value(), ui->uppersaturationlcd_2->value(), ui->uppervaluelcd_2->value() );
+    }
+    if(mode == EDIT_COLORS_MODE){
+        min = Vec3i( ui->minhuelcd_4->value(), ui->lowsaturationlcd_4->value(), ui->lowvaluelcd_4->value() );
+        min = Vec3i( ui->maxhuelcd_4->value(), ui->uppersaturationlcd_4->value(), ui->uppervaluelcd_4->value() );
+    }
     vision->setCurrentMinHSV(min);
     vision->setCurrentMaxHSV(max);
 }
@@ -539,5 +604,26 @@ void MainWindow::updateFieldImage(Mat img)
 }
 
 
+void MainWindow::on_editColorcmb_currentIndexChanged(int index)
+{
+    cout << index << endl;
+    color currentColor = vision->getConfigColor(index);
+    cout << currentColor.maxHSV[0] << endl;
+
+    ui->lowhuesld_4->setValue(currentColor.minHSV[0]);
+    ui->lowsaturationsld_4->setValue(currentColor.minHSV[1]);
+    ui->lowvaluesld_4->setValue(currentColor.minHSV[2]);
+    ui->upperhuesld_4->setValue(currentColor.maxHSV[0]);
+    ui->uppersaturationsld_4->setValue(currentColor.maxHSV[1]);
+    ui->uppervaluesld_4->setValue(currentColor.maxHSV[2]);
+
+    ui->minhuelcd_4->display(currentColor.minHSV[0]);
+    ui->lowsaturationlcd_4->display(currentColor.minHSV[1]);
+    ui->lowvaluelcd_4->display(currentColor.minHSV[2]);
+    ui->maxhuelcd_4->display(currentColor.maxHSV[0]);
+    ui->uppersaturationlcd_4->display(currentColor.maxHSV[1]);
+    ui->uppervaluelcd_4->display(currentColor.maxHSV[2]);
+
+}
 
 

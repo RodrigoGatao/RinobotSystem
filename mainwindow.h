@@ -15,6 +15,7 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
+    void updateSliderState(int mode);
 
 private slots:
     void on_pushButton_clicked(bool checked);
@@ -77,6 +78,18 @@ private slots:
 
     void on_uppersaturationsld_2_sliderMoved(int position);
 
+    void on_upperhuesld_4_sliderMoved(int position);
+
+    void on_lowhuesld_4_sliderMoved(int position);
+
+    void on_lowsaturationsld_4_sliderMoved(int position);
+
+    void on_uppervaluesld_4_sliderMoved(int position);
+
+    void on_lowvaluesld_4_sliderMoved(int position);
+
+    void on_uppersaturationsld_4_sliderMoved(int position);
+
     void on_confirmNameAddNewColorbtn_2_clicked();
 
     void on_confirmPerspectivebtn_clicked();
@@ -101,7 +114,11 @@ private slots:
 
     void on_idckb_currentIndexChanged(int index);
 
-    void updateSliderState();
+    void on_editColorcmb_currentIndexChanged(int index);
+
+    void on_cancelAddNewColorbtn_4_clicked();
+
+    void on_cancelEditColorbtn_4_clicked();
 
 public slots:
     void updateSegmentaionImage(Mat img);
