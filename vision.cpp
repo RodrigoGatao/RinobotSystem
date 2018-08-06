@@ -16,6 +16,7 @@ Vision::Vision(QObject *parent): QThread(parent)
     currentMinHSV = Vec3i(0, 0, 0);
     currentMaxHSV = Vec3i(255, 255, 255);
     loadLUT();
+
 }
 
 void Vision::run()
@@ -24,11 +25,13 @@ void Vision::run()
 
     while(running)
     {
+        int kernelSize = 5;
         if(visionMode == PERSPECTIVE_MODE)
         {
             Mat image2show;
             getRawFrame();
-            image2show = preProcessing(rawFrame, GAUSSIAN, 7, MATCH_FIELD_TRUE, USE_LUT_TRUE);
+            image2show = preProcessing(rawFrame, GAUSSIAN, kernelSize, MATCH_FIELD_TRUE, USE_LUT_TRUE);
+            cout << endl;
             cvtColor(image2show, image2show, COLOR_HSV2RGB);
             emit emit_fieldImage(image2show);
 
@@ -37,10 +40,18 @@ void Vision::run()
         {
             Mat image2show;
             getRawFrame();
-            image2show = preProcessing(rawFrame, GAUSSIAN, 7, MATCH_FIELD_TRUE, USE_LUT_FALSE);
+            image2show = preProcessing(rawFrame, GAUSSIAN, kernelSize, MATCH_FIELD_TRUE, USE_LUT_FALSE);
             image2show = colorSegmentationInterface(image2show);
             emit emit_segmentationImage(image2show);
         }
+        if(visionMode == EDIT_COLORS_MODE)
+        {
+            Mat image2show;
+            getRawFrame();
+            image2show = preProcessing(rawFrame, GAUSSIAN, kernelSize, MATCH_FIELD_TRUE, USE_LUT_FALSE);
+            // fazer analogo ao SET_COLORS_MODE
+        }
+
 
 
         double delay = 100;
@@ -242,13 +253,19 @@ Mat Vision::preProcessing(Mat src, int filter, int kernelSize, bool matchField, 
 {
     Mat output;
     src.copyTo(output);
+    clock_t tStart;
+    double tFinal;
 
     // ajusta a perspectiva da imagem, para "dar match" no campo real com o virtual
     if(matchField){
-        warpPerspective(output, output, fieldHomography1, cv::Point(640,480));
+        tStart = clock();
+        warpPerspective(output, output, fieldHomography1, Point(640,480));
+        tFinal = (double) (clock() - tStart)/CLOCKS_PER_SEC;
+        cout << "warpPerspective time: " << tFinal*1000 << "msec" << endl;
     }
 
     // aplica filtro
+    tStart = clock();
     switch (filter) {
     case GAUSSIAN:
         GaussianBlur(output, output, Size(kernelSize, kernelSize), 0, BORDER_CONSTANT);
@@ -261,14 +278,22 @@ Mat Vision::preProcessing(Mat src, int filter, int kernelSize, bool matchField, 
         medianBlur(output, output, kernelSize);
         break;
     }
+    tFinal = (double) (clock() - tStart)/CLOCKS_PER_SEC;
+    cout << "filter time: " << tFinal*1000 << "msec" << endl;
 
     // faz a transformação de cores
     if(useLUT){
+        tStart = clock();
         applyLUT(output);
+        tFinal = (double) (clock() - tStart)/CLOCKS_PER_SEC;
+        cout << "LUT time: " << tFinal*1000 << "msec" << endl;
     }else{
+        tStart = clock();
         cvtColor(output, output, COLOR_BGR2HSV);
+        tFinal = (double) (clock() - tStart)/CLOCKS_PER_SEC;
+        cout << "cvColor time: " << tFinal*1000 << "msec" << endl;
     }
-    //cout << "Preprocessed" << endl;
+    cout << endl;
     return output;
 }
 
@@ -333,6 +358,16 @@ void Vision::setPerspectiveTransformation(vector<Point> realFieldPoints)
     // Calcula a matriz de transformação com base nos pontos acima e os recebidos pelo usuário
     fieldHomography1 = findHomography(realFieldPoints, pts_dst);
     fieldHomography2 = findHomography(realFieldPoints, pts_dst);
+
+    cout << "Tipo da Mat fieldHomography1: " << fieldHomography1.type() << endl;
+    for(int i = 0; i < fieldHomography1.cols; i++)
+    {
+        for(int j = 0; j < fieldHomography1.rows; j++)
+        {
+            cout << fieldHomography1.at<float>(i,j) << " ";
+        }
+        cout << endl;
+    }
 }
 
 /*
